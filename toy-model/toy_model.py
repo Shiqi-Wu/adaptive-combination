@@ -78,7 +78,7 @@ class reaction_diffusion_equation(object):
             u_data[step + 1,:] = u_1
         return u_data
 
-    def genarate_training_data(self, steps, traj_num, dlt_t = 0.001):
+    def generate_training_data(self, steps, traj_num, dlt_t = 0.001):
         u0 = 2 * np.random.rand(self.dim - 1) - 1
 
         u_data = self.generate_traj(steps, u0, dlt_t)

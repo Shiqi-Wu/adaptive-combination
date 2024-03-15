@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Debug reaction_diffusion_model_ffw.py",
+            "type": "python",
+            "request": "launch",
+            "program": "reaction_diffusion_model_ffw.py",
+            "console": "integratedTerminal",
+            "args": ["--config", "config_pretrained.yaml"]
+        }
+    ]
+}
