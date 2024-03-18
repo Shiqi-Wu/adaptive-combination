@@ -7,7 +7,7 @@ num_epoch: 100
 save_dir: "reaction_diffusion_output/"
 save_name: "reaction_diffusion_model_h"
 load_dir: "reaction_diffusion_output/"
-load_name: "reaction_diffusion_model_h.pth"
+load_name: "reaction_diffusion_model_h_pretrained.pth"
 seed: 315
 pre_train: false
 nonlinearity: "relu"

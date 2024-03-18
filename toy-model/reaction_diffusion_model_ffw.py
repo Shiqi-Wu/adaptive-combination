@@ -202,7 +202,7 @@ def pre_train(config):
     model_h = ParaModel(config['input_dim'], config['hidden_dims'], config['m_dim'], seed=config['seed'])
     optimizer = Adam(model_h.parameters(), lr=config['lr'])
     dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False)
-    scheduler = StepLR(optimizer, step_size=50, gamma=0.9)
+    scheduler = StepLR(optimizer, step_size=100, gamma=0.9)
 
     epochs = config['num_epoch']
     train_losses = [0] * epochs
@@ -210,7 +210,7 @@ def pre_train(config):
     train_losses2 = [0] * epochs
 
     for epoch in range(epochs):
-        train_loss, train_loss1, train_loss2 = pretrain_one_epoch(model_h, optimizer, dataloader, config['m_dim'], epoch, mu, 1, 1)
+        train_loss, train_loss1, train_loss2 = pretrain_one_epoch(model_h, optimizer, dataloader, config['m_dim'], epoch, mu, config['lambda1'], config['lambda2'])
         train_losses[epoch] = train_loss
         train_losses1[epoch] = train_loss1
         train_losses2[epoch] = train_loss2
@@ -219,8 +219,8 @@ def pre_train(config):
     # Save model
     if not os.path.exists(config['save_dir']):
         os.makedirs(config['save_dir'])
-    torch.save(model_h, config['save_dir'] + config['save_name'] + '.pth')
-    print(f"Model saved to {config['save_dir'] + config['save_name']}")
+    torch.save(model_h, config['save_dir'] + config['save_name'] + '_pretrained.pth')
+    print(f"Model saved to {config['save_dir'] + config['save_name']}_pretrained.pth")
 
     # Plot loss
     plt.plot(train_losses, label='Total Loss')
@@ -230,7 +230,7 @@ def pre_train(config):
     plt.ylabel('Loss')
     plt.yscale('log')
     plt.legend()
-    plt.savefig(config['save_dir'] + config['save_name'] + '_loss.png')
+    plt.savefig(config['save_dir'] + config['save_name'] + '_pretrained_loss.png')
     plt.show()
 
 def train_linear_layer(model, linear_layer, x, lace, y, config):
