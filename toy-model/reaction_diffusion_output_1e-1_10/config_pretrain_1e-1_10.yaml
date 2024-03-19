@@ -1,0 +1,15 @@
+input_dim: 2
+hidden_dims: [64, 64, 64]
+m_dim: 16
+lr: 0.001
+batch_size: 256
+num_epoch: 3000
+save_dir: "reaction_diffusion_output_1e-1_10/"
+save_name: "pretrained_model_1e-1_10.pth"
+load_dir: "reaction_diffusion_output/"
+seed: 315
+pre_train: true
+nonlinearity: "relu"
+iterations: 15
+lambda1: 0.1
+lambda2: 10

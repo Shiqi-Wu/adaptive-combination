@@ -127,12 +127,12 @@ def custom_loss_function(h_outputs, y, lace, mu, lambda1, lambda2, m_dim):
         k_i_values[i] = proj_coefficient_u_x
 
     # Define loss1 as the lambda1-weighted squared norm of g's projection
-    loss1 = lambda1 * proj_g_norm_squared
+    loss1 = proj_g_norm_squared
     # Define loss2 based on the squared difference between u_x and its projection onto the subspace
-    loss2 = lambda2 * torch.sum((torch.matmul(h_outputs, k_i_values.unsqueeze(1)).squeeze() - u_x) ** 2)
+    loss2 = torch.sum((torch.matmul(h_outputs, k_i_values.unsqueeze(1)).squeeze() - u_x) ** 2)
 
     # Calculate the total loss as the sum of loss1 and loss2
-    total_loss = loss1 + loss2
+    total_loss = lambda1 * loss1 + lambda2 * loss2
 
     return total_loss, loss1, loss2
 
@@ -285,7 +285,7 @@ def iterative_train(dataset, model_h, linear_h, config):
         err = torch.norm(y - y_h - y_g)
         print('iteration:', iteration, 'error:', err.item())
         err_history_h[iteration] = err.item()
-    return err_history_h
+    return mu_h, err_history_h
 
 
 if __name__ == "__main__":
@@ -314,7 +314,7 @@ if __name__ == "__main__":
 
         data_model = reaction_diffusion_equation()
         dataset = data_model.generate_training_data(500, 10, dlt_t=0.001)
-        err_history_h = iterative_train(dataset, model_h, linear_h, config)
+        mu_h, err_history_h = iterative_train(dataset, model_h, linear_h, config)
 
         # Save model
         if not os.path.exists(config['save_dir']):
@@ -323,6 +323,11 @@ if __name__ == "__main__":
         print(f"Model saved to {config['save_dir'] + config['save_name']}.pth")
         torch.save(linear_h, config['save_dir'] + config['save_name'] + '_linear' + '.pth')
         print(f"Model saved to {config['save_dir'] + config['save_name'] + '_linear'}.pth")
+        np.save(config['save_dir'] + config['save_name'] + '_mu.npy', mu_h)
+        print(f"mu saved to {config['save_dir'] + config['save_name'] + '_mu.npy'}")
+        np.save(config['save_dir'] + config['save_name'] + '_iterative_error.npy', err_history_h)   
+        print(f"Error history saved to {config['save_dir'] + config['save_name'] + '_iterative_error.npy'}")
+
 
         # Plot error
         plt.plot(range(1, config['iterations']+1), err_history_h, label='Error') # Corrected
