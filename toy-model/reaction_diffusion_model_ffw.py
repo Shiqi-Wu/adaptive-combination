@@ -112,7 +112,7 @@ def custom_loss_function(h_outputs, y, lace, mu, lambda1, lambda2, m_dim):
     for i in range(m_dim):
         h_i = h_outputs[:, i]
         # Calculate the projection coefficient of g onto h_i and accumulate the squares of these projections
-        proj_coefficient = (torch.dot(g.squeeze(), h_i) / torch.dot(h_i, h_i))
+        proj_coefficient = torch.dot(g.squeeze(), h_i) / torch.dot(h_i, h_i)
         proj_g_norm_squared += proj_coefficient ** 2
 
     # Initialize the squared norm of u_x's projection onto the subspace spanned by h_outputs
@@ -122,8 +122,8 @@ def custom_loss_function(h_outputs, y, lace, mu, lambda1, lambda2, m_dim):
     for i in range(m_dim):
         h_i = h_outputs[:, i]
         # Calculate the projection coefficient of u_x onto h_i
-        proj_coefficient_u_x = (torch.dot(u_x, h_i) / torch.dot(h_i, h_i))
-        proj_u_x_norm_squared += proj_coefficient_u_x ** 2
+        proj_coefficient_u_x = torch.dot(u_x, h_i) / torch.dot(h_i, h_i)
+        # proj_u_x_norm_squared += proj_coefficient_u_x ** 2
         k_i_values[i] = proj_coefficient_u_x
 
     # Define loss1 as the lambda1-weighted squared norm of g's projection
@@ -146,23 +146,12 @@ def pretrain_one_epoch(model, optim, data_loader, m_dim, epoch, mu, lambda1, lam
     for x, y, lace in data_loader:
         
         h_outputs = model(torch.cat((x, lace), dim = 1))
-        Q, R = torch.linalg.qr(h_outputs, mode='reduced')
+        Q, _ = torch.linalg.qr(h_outputs, mode='reduced')
         
-        # R_inv = torch.linalg.inv(R)
-
-        # with torch.no_grad():
-            # model.W.data = R_inv
-
-        # h_outputs = model.orthogonal(x)
         optim.zero_grad()
         loss, loss1, loss2 = custom_loss_function(Q, y, lace, mu, lambda1, lambda2, m_dim)
         loss.backward()
         optim.step()
-        # print(loss.item())
-        # for name, param in model.named_parameters():
-        #     if param.grad is not None:
-        #         print(f"Gradient of {name} is {param.grad.norm().item()}")  # 打印梯度的范数
-
 
         train_loss += loss.item()
         train_loss1 += loss1.item()
