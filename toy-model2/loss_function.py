@@ -24,6 +24,7 @@ def terminal_loss(gh_outputs_orthogonal, y):
     
     return loss
 
+
 def orthogonal_loss(g_outputs, h_outputs_orthogonal):
     epsilon = 1e-4
     smooth_param = 1e-3
@@ -45,3 +46,45 @@ def orthogonal_loss(g_outputs, h_outputs_orthogonal):
     loss = proj_g_norm_squared 
     # + smooth_param * smooth_term
     return loss
+
+
+def terminal_loss_ver2(g, h, y):
+    gh = torch.cat((g, h), 1)
+
+    # Calculate projection coefficients
+    gh_orthogonal = gram_schmidt(gh)
+    coeffs, _, _, _ = torch.linalg.lstsq(gh_orthogonal, y)
+    # print(coeffs)
+
+    # Calculate the projection of y onto the space spanned by g and h
+    y_proj = torch.matmul(gh_orthogonal, coeffs)
+
+    # Calculate loss (MSE)
+    loss = F.mse_loss(y_proj, y)
+    return loss
+
+def gram_schmidt(vectors, epsilon=1e-10):
+    orthogonal_vectors = []
+    for i in range(vectors.shape[1]):
+        v = vectors[:, i]
+        for u in orthogonal_vectors:
+            v = v - torch.dot(v, u) * u  # Subtract the projection of v onto u
+
+        # Check if the vector is close to zero before normalizing
+        norm_v = torch.norm(v)
+        if norm_v > epsilon:  # Only normalize if the norm is greater than a small epsilon
+            orthogonal_vectors.append(v / norm_v)
+        else:
+            orthogonal_vectors.append(v)  # If norm is too small, avoid division
+
+    return torch.stack(orthogonal_vectors, dim=1)
+
+def orthogonal_loss_ver2(g, h):
+    
+    # Orthogonalize g and h separately
+    g_orthogonal = gram_schmidt(g)
+    h_orthogonal = gram_schmidt(h)
+
+    # Calculate cosine similarity
+    cosine_sim = torch.sum((g_orthogonal * h_orthogonal)**2)
+    return cosine_sim

@@ -26,6 +26,29 @@ class diffusion_equation(object):
             u_data.append(u0)
         return np.array(u_data)
     
+class diffusion_equation(object):
+    def __init__(self, dim = 20, L0 = 0, L1 = 1, mu = [1, 1]):
+        self.dim = dim
+        self.L0 = L0
+        self.L1 = L1
+        self.mu = mu
+        self.build_A()
+
+    def build_A(self):
+        self.A = np.zeros([self.dim - 1, self.dim - 1])
+        for i in range(self.dim - 1):
+            self.A[i, i] = -2 
+        for i in range(self.dim - 2):
+            self.A[i, i + 1] = 1
+            self.A[i + 1, i] = 1
+    
+    def generate_traj(self, steps, u0, dlt_t = 0.001):
+        u_data = [u0]
+        for _ in range(steps):
+            u0 = u0 + dlt_t * (self.mu[0] * self.A @ u0 + self.mu[1] * u0 @ self.A)
+            u_data.append(u0)
+        return np.array(u_data)
+    
     def generate_training_data(self, traj_num, steps, dlt_t = 0.001):
         u0 = np.random.rand(self.dim - 1, self.dim - 1)
         u_data = self.generate_traj(steps, u0, dlt_t)
@@ -52,6 +75,7 @@ class diffusion_equation(object):
         dataset = TensorDataset(u_x_tensor, u_y_tensor, u_x_lace_1_tensor, u_x_lace_2_tensor)
     
         return dataset
+
     
 class reaction_diffusion_equation(object):
     def __init__(self, dim = 20, L0 = 0, L1 = 1, mu = 1):
