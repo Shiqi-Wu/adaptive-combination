@@ -86,7 +86,7 @@ class reaction_diffusion_equation(object):
         self.build_A()
     
     def reaction_term(self, u):
-        return 1/4*2 * (u-1)*(u+1)**2+ 1/4 * 2 * (u-1)**2 * (u+1)
+        return 100 * 1/4*2 * (u-1)*(u+1)**2+ 1/4 * 2 * (u-1)**2 * (u+1)
     
     def build_A(self):
         self.A = np.zeros([self.dim - 1, self.dim - 1])

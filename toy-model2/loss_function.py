@@ -49,6 +49,12 @@ def orthogonal_loss(g_outputs, h_outputs_orthogonal):
 
 
 def terminal_loss_ver2(g, h, y):
+
+    # mean_y = torch.mean(y)
+    # std_y = torch.std(y)
+    # y_rescaled = (y - mean_y) / std_y  # 对 y 进行标准化
+    # print(mean_y, std_y)
+
     gh = torch.cat((g, h), 1)
 
     # Calculate projection coefficients
@@ -85,6 +91,13 @@ def orthogonal_loss_ver2(g, h):
     g_orthogonal = gram_schmidt(g)
     h_orthogonal = gram_schmidt(h)
 
-    # Calculate cosine similarity
-    cosine_sim = torch.sum((g_orthogonal * h_orthogonal)**2)
-    return cosine_sim
+    # Calculate the cosine similarity matrix
+    cosine_similarities = torch.mm(g_orthogonal.t(), h_orthogonal)
+
+    # Square the cosine similarities
+    cosine_similarities_squared = cosine_similarities ** 2
+
+    # Find the maximum value in the squared cosine similarities
+    max_cosine_similarity = cosine_similarities_squared.max()
+    
+    return max_cosine_similarity

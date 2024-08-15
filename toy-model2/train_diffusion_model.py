@@ -17,9 +17,6 @@ from torch.autograd import gradcheck
 from torch.optim import LBFGS
 from tqdm import tqdm
 
-
-
-
 # Define a simple model with a single trainable parameter `k`
 class SimpleModel(nn.Module):
     def __init__(self, k_value = None):
@@ -37,7 +34,6 @@ class SimpleModel(nn.Module):
 
 lambda_1, lambda_2 = 1, 1
 def loss_function(y, g, h):
-    N = h.shape[0]
     loss_1 = terminal_loss_ver2(g, h, y)
     loss_2 = orthogonal_loss_ver2(g, h)
     return lambda_1 * loss_1 + lambda_2 * loss_2, loss_1, loss_2
