@@ -86,7 +86,7 @@ def train(model, optimizer, data_loader, epochs):
         k_history.append(model.k.item())
 
         # Print average loss for the current epoch
-        print(f"Epoch {epoch + 1}/{epochs}, Average Loss: {average_loss:.6f}")
+        print(f"Epoch {epoch + 1}/{epochs}, Average Loss: {average_loss:.6f}, k values: {model.k.item():.6f}")
 
     return loss_history, k_history
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # Initialize model and move it to device
     model = SimpleModel_diffusion().to(device)
     optimizer = Adam(model.parameters(), lr=0.01)
-    batch_size = 64
+    batch_size = 256
     epochs = 10
 
     # Create DataLoader

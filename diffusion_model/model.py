@@ -137,7 +137,7 @@ class reaction_diffusion_equation(object):
 # Define a simple model with a single trainable parameter `k`
 class SimpleModel_diffusion(nn.Module):
     def __init__(self, k_value = None):
-        super(SimpleModel_diffussion, self).__init__()
+        super(SimpleModel_diffusion, self).__init__()
         if k_value is None:
             self.k = nn.Parameter(torch.randn((), dtype=torch.float64))
         else:
