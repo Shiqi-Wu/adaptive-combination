@@ -23,7 +23,7 @@ torch.manual_seed(19)
 dataset = generate_x_data(3000)
 val_dataset = generate_x_data(1000)
 
-save_dir = 'outputs/experiment4'
+save_dir = 'outputs/experiment5'
 os.makedirs(save_dir, exist_ok=True)
 
 def create_orthogonalized_data_loader(dataset, model, batch_size):
@@ -96,7 +96,7 @@ def test_one_epoch(model, val_loader):
     average_loss = total_loss / num_batches
     return average_loss
 
-def train(model, optimizer, data_loader, val_data_loader, epochs, lr_decay_step = 200, lr_decay_gamma = 0.9):
+def train(model, optimizer, data_loader, val_data_loader, epochs, lr_decay_step = 300, lr_decay_gamma = 0.9):
     loss_history = []
     val_loss_history = []
 
@@ -118,7 +118,7 @@ def train(model, optimizer, data_loader, val_data_loader, epochs, lr_decay_step 
         current_lr = scheduler.get_last_lr()[0]
         print(f"Epoch {epoch + 1}/{epochs}, Average Loss: {average_loss:.6f}, Val Average Loss: {val_loss:.6f}, Learning Rate: {current_lr:.6f}")
 
-    return loss_history
+    return loss_history, val_loss_history
 
 
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     # Train the model
     epochs = 20000
-    loss_history = train(model, optimizer, data_loader, val_data_loader, epochs)
+    loss_history, val_loss_history = train(model, optimizer, data_loader, val_data_loader, epochs)
 
     # Save the trained model
     torch.save(model.state_dict(), os.path.join(save_dir, "resnet_model.pth"))
@@ -149,7 +149,10 @@ if __name__ == "__main__":
     plt.plot(range(1, epochs + 1), val_loss_history, label="Validation Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Average Loss")
+    plt.yscale('log')
     plt.title("Training Loss History")
+    y_ticks = [5e-2, 8e-2, 1e-1, 2e-1, 3e-1, 4e-1, 5e-1, 6e-1, 7e-1, 8e-1, 9e-1, 1e0]
+    plt.yticks(y_ticks, [f"{y:.0e}" for y in y_ticks])
     plt.legend()
     plt.grid()
     plt.savefig(os.path.join(save_dir, "loss_history.png"))

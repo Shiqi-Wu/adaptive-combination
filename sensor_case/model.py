@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision import models
 
-
+# Define a function to generate random data
 def generate_x_data(size):
     """
     Generates x_data from a standard normal distribution N(0,1) with shape (size, 4).
@@ -16,6 +16,7 @@ def generate_x_data(size):
     """
     return torch.randn(size, 4)
 
+# Define the ResNet model
 class BasicBlock(nn.Module):
     def __init__(self, in_features, out_features):
         super(BasicBlock, self).__init__()
@@ -65,6 +66,7 @@ class ResNet(nn.Module):
 def ResNet3():
     return ResNet(BasicBlock, [1, 1, 1])
 
+# Define a model with a pretrained ResNet and a fully connected layer
 class PretrainedModelWithFC(nn.Module):
     def __init__(self, pretrained_model, num_pretrained, num_classes):
         super(PretrainedModelWithFC, self).__init__()
@@ -74,6 +76,8 @@ class PretrainedModelWithFC(nn.Module):
         for param in self.pretrained_model.parameters():
             param.requires_grad = False
 
+        self.norm = nn.BatchNorm1d(num_pretrained)
+
         # Add a fully connected layer
         self.fc = nn.Linear(number_pretrained, num_classes)
 
@@ -82,6 +86,80 @@ class PretrainedModelWithFC(nn.Module):
         with torch.no_grad():
             x = self.pretrained_model(x)
 
+        # Normalize the output
+        x = self.norm(x)
+
         # Forward pass through the fully connected layer
         x = self.fc(x)
         return x
+
+# Define a linear model
+class Linear_model(nn.Module):
+    def __init__(self, state_dim, control_dim):
+        super(Linear_model, self).__init__()
+        self.A = nn.Parameter(torch.randn(state_dim, state_dim))
+        self.B = nn.Parameter(torch.randn(control_dim, state_dim))
+    
+    def x_dict(self, x):
+        ones = torch.ones(x.shape[0], 1).to(x.device)
+        return torch.cat((ones, x), dim=1)
+
+    def forward(self, x, u):
+        x = self.x_dict(x)
+        y = torch.matmul(x, self.A) + torch.matmul(u, self.B)
+        return y[:, 1:]
+
+
+# Define the data rescaling layers
+class PCALayer(nn.Module):
+    def __init__(self, input_dim, output_dim, pca_matrix):
+        super(PCALayer, self).__init__()
+        self.pca_matrix = pca_matrix
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.transform = nn.Linear(input_dim, output_dim, bias = False)
+        self.transform.weight = nn.Parameter(pca_matrix, requires_grad=False)
+        self.inverse_transform = nn.Linear(output_dim, input_dim, bias = False)
+        self.inverse_transform.weight = nn.Parameter(pca_matrix.T, requires_grad=False)
+
+class StdScalerLayer(nn.Module):
+    def __init__(self, mean, std):
+        super(StdScalerLayer, self).__init__()
+        if not isinstance(mean, torch.Tensor):
+            mean = torch.tensor(mean, dtype=torch.float32)
+        if not isinstance(std, torch.Tensor):
+            std = torch.tensor(std, dtype=torch.float32)
+        self.mean = nn.Parameter(mean, requires_grad=False)
+        self.std = nn.Parameter(std, requires_grad=False)
+
+    def transform(self, x):
+        return (x - self.mean) / self.std
+    
+    def inverse_transform(self, input):
+        return input * self.std + self.mean
+
+class Rescale_pca_layer(nn.Module):
+    def __init__(self, std_layer_1, std_layer_2, std_layer_u, pca_layer):
+        super(Rescale_pca_layer, self).__init__()
+        self.std_layer_1 = std_layer_1
+        self.std_layer_2 = std_layer_2
+        self.std_layer_u = std_layer_u
+        self.pca_layer = pca_layer
+
+    def transform_x(self, x):
+        x = self.std_layer_1.transform(x)
+        x = self.pca_layer.transform(x)
+        x = self.std_layer_2.transform(x)
+        return x
+    
+    def inverse_transform_x(self, x):
+        x = self.std_layer_2.inverse_transform(x)
+        x = self.pca_layer.inverse_transform(x)
+        x = self.std_layer_1.inverse_transform(x)
+        return x
+
+    def transform_u(self, u):
+        return self.std_layer_u.transform(u)
+
+    def inverse_transform_u(self, u):
+        return self.std_layer_u.inverse_transform(u)
