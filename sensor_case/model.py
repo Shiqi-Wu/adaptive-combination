@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision import models
+
 
 def generate_x_data(size):
     """
@@ -62,3 +64,24 @@ class ResNet(nn.Module):
 
 def ResNet3():
     return ResNet(BasicBlock, [1, 1, 1])
+
+class PretrainedModelWithFC(nn.Module):
+    def __init__(self, pretrained_model, num_pretrained, num_classes):
+        super(PretrainedModelWithFC, self).__init__()
+        self.pretrained_model = pretrained_model
+
+        # Freeze the parameters of the pretrained model
+        for param in self.pretrained_model.parameters():
+            param.requires_grad = False
+
+        # Add a fully connected layer
+        self.fc = nn.Linear(number_pretrained, num_classes)
+
+    def forward(self, x):
+        # Forward pass through the pretrained model
+        with torch.no_grad():
+            x = self.pretrained_model(x)
+
+        # Forward pass through the fully connected layer
+        x = self.fc(x)
+        return x
