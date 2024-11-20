@@ -110,7 +110,7 @@ if __name__ == "__main__":
     data_loader = create_orthogonalized_data_loader(dataset, model, batch_size=128)
 
     # Train the model
-    epochs = 2000
+    epochs = 4000
     loss_history = train(model, optimizer, data_loader, epochs)
 
     # Save the trained model
