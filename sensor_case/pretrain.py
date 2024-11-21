@@ -23,7 +23,7 @@ torch.manual_seed(19)
 dataset = generate_x_data(3000)
 val_dataset = generate_x_data(1000)
 
-save_dir = 'outputs/experiment5'
+save_dir = 'outputs/experiment6'
 os.makedirs(save_dir, exist_ok=True)
 
 def create_orthogonalized_data_loader(dataset, model, batch_size):

@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
+import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "utils"))
 import torch
@@ -19,6 +20,7 @@ from tqdm import tqdm
 from datetime import datetime
 from rearrange_data import load_dataset, cut_slices, data_preparation
 from model import Linear_model, PretrainedModelWithFC, Rescale_pca_layer, StdScalerLayer, PCALayer
+from model import ResNet, BasicBlock
 
 # Parses command-line arguments to obtain configuration settings.
 def parse_arguments():
@@ -135,10 +137,6 @@ def hybrid_loss(linear_model, residual_model, x_data_seq, u_data_seq):
     N = x_data_seq.shape[1]
     if N <= 1:
         raise ValueError("The sequence length must be greater than 1.")
-    
-    # Move data to the appropriate device
-    x_data_seq = x_data_seq.to(residual_model.device)
-    u_data_seq = u_data_seq.to(residual_model.device)
 
     # Initialize the prediction with the first element of the sequence
     x0 = x_data_seq[:, 0, :]
@@ -147,8 +145,13 @@ def hybrid_loss(linear_model, residual_model, x_data_seq, u_data_seq):
     # Iteratively predict the next elements in the sequence
     for i in range(1, N):
         if residual_model is not None and linear_model is not None:
+            # print("x0 size:", x0.size())
+            # print("u_data_seq[:, i-1, :] size:", u_data_seq[:, i-1, :].size())
+            # print("linear_model output size:", linear_model(x0, u_data_seq[:, i-1, :]).size())
+            # print("residual_model output size:", residual_model(x0).size())
+
             # Apply both linear and residual models
-            x0 = linear_model(x0, u_data_seq[:, i-1, :]) + residual_model(x0, u_data_seq[:, i-1, :])
+            x0 = linear_model(x0, u_data_seq[:, i-1, :]) + residual_model(x0)
         elif linear_model is not None:
             # Apply only the linear model
             x0 = linear_model(x0, u_data_seq[:, i-1, :])
@@ -270,7 +273,7 @@ def iterative_training(dataset, linear_model, residual_model, config, learning_r
         np.save(f"residual_model_{iter + 1}_val_loss_history.npy", np.array(val_loss_history))   
 
         linear_predict = linear_model(x_data, u_data)
-        residual_predict = residual_model(x_data, u_data)
+        residual_predict = residual_model(x_data)
         y_predict = linear_predict + residual_predict
 
         mse_loss = nn.MSELoss()
@@ -290,42 +293,42 @@ def main():
     # Load data
     data_dir = config['train_data_dir']
     x_data, y_data, u_data = data_preparation(config, data_dir)
-    x_data = torch.tensor(x_data, dtype = torch.float64)
-    y_data = torch.tensor(y_data, dtype = torch.float64)
-    u_data = torch.tensor(u_data, dtype = torch.float64)
+    x_data = torch.tensor(x_data, dtype=torch.float32, device=device)
+    y_data = torch.tensor(y_data, dtype=torch.float32, device=device)
+    u_data = torch.tensor(u_data, dtype=torch.float32, device=device)
 
     # rescale and reduce dimension
     x_dim = x_data.shape[1]
     u_dim = u_data.shape[1]
 
     # Standardize the data
-    x_mean_1 = torch.mean(x_data, dim = 0)
-    x_std_1 = torch.std(x_data, dim = 0)
-    std_layer_1 = StdScalerLayer(x_mean_1, x_std_1)
+    x_mean_1 = torch.mean(x_data, dim=0)
+    x_std_1 = torch.std(x_data, dim=0)
+    std_layer_1 = StdScalerLayer(x_mean_1.to(device), x_std_1.to(device))
     x_data_scaled = std_layer_1.transform(x_data)
 
-    u_mean = torch.mean(u_data, dim = 0)
-    u_std = torch.std(u_data, dim = 0)
-    std_layer_u = StdScalerLayer(u_mean, u_std)
+    u_mean = torch.mean(u_data, dim=0)
+    u_std = torch.std(u_data, dim=0)
+    std_layer_u = StdScalerLayer(u_mean.to(device), u_std.to(device))
     u_data_scaled = std_layer_u.transform(u_data)
 
     # Apply PCA to the data
-    pca = PCA(n_components = config['pca_dim'])
+    pca = PCA(n_components=config['pca_dim'])
     pca.fit(x_data_scaled.detach().cpu().numpy())
     components = pca.components_
-    pca_matrix = torch.tensor(components, dtype = torch.float64).to(device)
-    pca_layer = PCALayer(x_dim, config['pca_dim'], pca_matrix)
+    pca_matrix = torch.tensor(components, dtype=torch.float32, device=device)
+    pca_layer = PCALayer(x_dim, config['pca_dim'], pca_matrix).to(device)
 
     # Standardize the data 2
     x_pca = pca_layer.transform(x_data_scaled)
-    x_mean_2 = torch.mean(x_pca, dim = 0)
-    x_std_2 = torch.std(x_pca, dim = 0)
-    std_layer_2 = StdScalerLayer(x_mean_2, x_std_2)
+    x_mean_2 = torch.mean(x_pca, dim=0)
+    x_std_2 = torch.std(x_pca, dim=0)
+    std_layer_2 = StdScalerLayer(x_mean_2.to(device), x_std_2.to(device))
 
     # Build StdPCA Layer
     rescale_pca_layer = Rescale_pca_layer(std_layer_1, std_layer_2, std_layer_u, pca_layer)
 
-    # Build dataset
+    # Transform the data
     x_data = rescale_pca_layer.transform_x(x_data)
     y_data = rescale_pca_layer.transform_x(y_data)
     u_data = rescale_pca_layer.transform_u(u_data)
@@ -338,5 +341,29 @@ def main():
     linear_model = Linear_model(state_dim, control_dim).to(device)
 
     # Define the pretrained model
-    
+    pretrained_model = ResNet(BasicBlock, config['pretrained_model_layers']).to(device)
+    pretrained_model.load_state_dict(torch.load(config['pretrained_model_path'], map_location=device))
+
+    # Define the residual model
+    residual_model = PretrainedModelWithFC(pretrained_model, 64, config['pca_dim']).to(device)
+
+    # Train the model
+    linear_model, residual_model, iterative_losses = iterative_training(
+        dataset, linear_model, residual_model, config, device=device
+    )
+
+    # Save the trained models
+    os.makedirs(config['save_dir'], exist_ok=True)
+    torch.save(linear_model.state_dict(), os.path.join(config['save_dir'], "linear_model.pth"))
+    torch.save(residual_model.state_dict(), os.path.join(config['save_dir'], "residual_model.pth"))
+    torch.save(rescale_pca_layer.state_dict(), os.path.join(config['save_dir'], "rescale_pca_layer.pth"))
+
+    # Save the iterative losses
+    np.save(os.path.join(config['save_dir'], "iterative_losses.npy"), np.array(iterative_losses))
+
+    return
+
+if __name__ == "__main__":
+    main()
+
 

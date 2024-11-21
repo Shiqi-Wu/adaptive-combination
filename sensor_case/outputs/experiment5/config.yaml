@@ -1,0 +1,13 @@
+save_dir: "outputs/experiment5"
+num_epochs: 200
+batch_size: 256
+learning_rate: 0.001
+seed: 22
+num_iter: 5
+pretrained_model_layers: [2, 2, 2]
+window_size: 150
+predict_num: 10
+pca_dim: 4
+train_data_dir: "data_dir/data_20240621"
+test_data_dir: "data_dir/data_20240621_test"
+pretrained_model_path: "outputs/experiment5/resnet_model.pth"

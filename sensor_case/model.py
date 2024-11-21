@@ -44,10 +44,15 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.in_features = 5
 
-        self.layer1 = self._make_layer(block, 16, num_blocks[0])
-        self.layer2 = self._make_layer(block, 32, num_blocks[1])
-        self.layer3 = self._make_layer(block, 64, num_blocks[2])
-        self.linear = nn.Linear(64, num_classes)
+        # self.layer1 = self._make_layer(block, 16, num_blocks[0])
+        # self.layer2 = self._make_layer(block, 32, num_blocks[1])
+        # self.layer3 = self._make_layer(block, 64, num_blocks[2])
+        # self.linear = nn.Linear(64, num_classes)
+        
+        self.layer1 = self._make_layer(block, 32, num_blocks[0])
+        self.layer2 = self._make_layer(block, 64, num_blocks[1])
+        self.layer3 = self._make_layer(block, 128, num_blocks[2])
+        self.linear = nn.Linear(128, num_classes)
 
     def _make_layer(self, block, out_features, num_blocks):
         layers = []
@@ -79,9 +84,14 @@ class PretrainedModelWithFC(nn.Module):
         self.norm = nn.BatchNorm1d(num_pretrained)
 
         # Add a fully connected layer
-        self.fc = nn.Linear(number_pretrained, num_classes)
+        self.fc = nn.Linear(num_pretrained, num_classes)
 
     def forward(self, x):
+        ones = torch.ones(x.shape[0], 1).to(x.device)
+
+        # Concatenate ones to the input
+        x = torch.cat((ones, x), dim=1)
+        
         # Forward pass through the pretrained model
         with torch.no_grad():
             x = self.pretrained_model(x)
