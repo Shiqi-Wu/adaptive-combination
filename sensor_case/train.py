@@ -21,6 +21,7 @@ from datetime import datetime
 from rearrange_data import load_dataset, cut_slices, data_preparation
 from model import Linear_model, PretrainedModelWithFC, Rescale_pca_layer, StdScalerLayer, PCALayer
 from model import ResNet, BasicBlock
+import matplotlib.pyplot as plt
 
 # Parses command-line arguments to obtain configuration settings.
 def parse_arguments():
@@ -116,7 +117,7 @@ def train_linear_model(dataset, linear_model, residual_model, device='cpu'):
     u_data = u_data.to(device)
     if residual_model is None:
         raise ValueError("The residual model must be provided.")
-    err_data = y_data - residual_model(x_data, u_data)
+    err_data = y_data - residual_model(x_data)
     linear_model = linear_regression((x_data, err_data, u_data), linear_model, device)
     return linear_model
 
@@ -264,22 +265,52 @@ def iterative_training(dataset, linear_model, residual_model, config, learning_r
 
     # Iterative Training
     num_iter = config['num_iter']
+    mse_loss = nn.MSELoss()
     iterative_losses = []
+    linear_predict = linear_model(x_data, u_data)
+    loss = mse_loss(linear_predict, y_data)
+    iterative_losses.append(loss.item())
+    
     for iter in range(num_iter):
         print(f"Iteration {iter + 1}")
         residual_model, loss_history, val_loss_history = train_residual_model(linear_model, residual_model, dataset, config, learning_rate, device)
         linear_model = train_linear_model(dataset, linear_model, residual_model, device)
-        np.save(f"residual_model_{iter + 1}_loss_history.npy", np.array(loss_history))
-        np.save(f"residual_model_{iter + 1}_val_loss_history.npy", np.array(val_loss_history))   
+        np.save(os.path.join(config['save_dir'], f"loss_history_{iter}.npy"), np.array(loss_history))
+        np.save(os.path.join(config['save_dir'], f"val_loss_history_{iter}.npy"), np.array(val_loss_history))
+        
+        # plot the loss history
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(1, len(loss_history) + 1), loss_history, label="Training Loss")
+        plt.plot(range(1, len(val_loss_history) + 1), val_loss_history, label="Validation Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.yscale('log')
+        plt.title(f"Training Loss History (Iteration {iter + 1})")
+        plt.legend()
+        plt.savefig(os.path.join(config['save_dir'], f"loss_history_{iter}.png"))
+        plt.close()
 
+        # Compute the loss after the iteration
         linear_predict = linear_model(x_data, u_data)
         residual_predict = residual_model(x_data)
         y_predict = linear_predict + residual_predict
 
-        mse_loss = nn.MSELoss()
+        
         loss = mse_loss(y_predict, y_data)
         print(f'Iterative Loss at ({iter+1}): {loss.item()}')
         iterative_losses.append(loss.item())
+    
+    # plot the iterative loss
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(num_iter + 1), iterative_losses, label="Iterative Loss")
+    plt.xlabel("Iteration")
+    plt.ylabel("Loss")
+    plt.yscale('log')
+    plt.title("Iterative Loss History")
+    plt.legend()
+    plt.savefig(os.path.join(config['save_dir'], "iterative_loss_history.png"))
+    plt.close
+    
     return linear_model, residual_model, iterative_losses
 
 def main():
@@ -345,7 +376,7 @@ def main():
     pretrained_model.load_state_dict(torch.load(config['pretrained_model_path'], map_location=device))
 
     # Define the residual model
-    residual_model = PretrainedModelWithFC(pretrained_model, 64, config['pca_dim']).to(device)
+    residual_model = PretrainedModelWithFC(pretrained_model, config['pretrained_num'], config['pca_dim']).to(device)
 
     # Train the model
     linear_model, residual_model, iterative_losses = iterative_training(

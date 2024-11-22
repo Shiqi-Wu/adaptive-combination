@@ -40,7 +40,7 @@ class BasicBlock(nn.Module):
         return out
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=64):
+    def __init__(self, block, num_blocks, num_classes=128):
         super(ResNet, self).__init__()
         self.in_features = 5
 
@@ -49,8 +49,8 @@ class ResNet(nn.Module):
         # self.layer3 = self._make_layer(block, 64, num_blocks[2])
         # self.linear = nn.Linear(64, num_classes)
         
-        self.layer1 = self._make_layer(block, 32, num_blocks[0])
-        self.layer2 = self._make_layer(block, 64, num_blocks[1])
+        self.layer1 = self._make_layer(block, 16, num_blocks[0])
+        self.layer2 = self._make_layer(block, 32, num_blocks[1])
         self.layer3 = self._make_layer(block, 128, num_blocks[2])
         self.linear = nn.Linear(128, num_classes)
 

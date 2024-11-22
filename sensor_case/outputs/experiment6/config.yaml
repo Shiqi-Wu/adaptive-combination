@@ -11,3 +11,4 @@ pca_dim: 4
 train_data_dir: "data_dir/data_20240621"
 test_data_dir: "data_dir/data_20240621_test"
 pretrained_model_path: "outputs/experiment6/resnet_model.pth"
+pretrained_num: 128
