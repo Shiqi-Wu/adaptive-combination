@@ -10,52 +10,17 @@ from torch.optim import Adam
 from torch import optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import argparse
 import os
-import yaml
 from sklearn.decomposition import PCA
 import copy
 import torch.nn.functional as F
 from tqdm import tqdm
 from datetime import datetime
-from rearrange_data import load_dataset, cut_slices, data_preparation
+from rearrange_data import load_dataset, cut_slices, data_preparation, preprocess_data
 from model import Linear_model, PretrainedModelWithFC, Rescale_pca_layer, StdScalerLayer, PCALayer
 from model import ResNet, BasicBlock
 import matplotlib.pyplot as plt
-
-# Parses command-line arguments to obtain configuration settings.
-def parse_arguments():
-    """
-    Input:
-        None
-    Function:
-        Parses command-line arguments to retrieve the path to the configuration file.
-        If no path is provided, defaults to 'config.yaml'.
-    Returns:
-        args (Namespace): Parsed command-line arguments.
-    """
-    parser = argparse.ArgumentParser(description='Train the model')
-    parser.add_argument('--config', type=str, default='config.yaml', help='Path to the config file')
-    args = parser.parse_args()
-    return args
-
-# Reads and loads the configuration from a YAML file.
-def read_config_file(config_file):
-    """
-    Input:
-        config_file (str): Path to the YAML configuration file.
-    Function:
-        Opens the specified YAML file and loads its contents as a dictionary.
-        If there is an error during reading, it will print the error message.
-    Returns:
-        config (dict): Configuration parameters loaded from the YAML file.
-    """
-    with open(config_file, 'r') as stream:
-        try:
-            config = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
-    return config
+from args_arguments import parse_arguments, read_config_file
 
 # Performs linear regression to estimate parameters A and B for the linear model.
 def linear_regression(dataset, linear_model, device='cpu'):
@@ -230,7 +195,7 @@ def train_residual_model(linear_model, residual_model, dataset, config, learning
 
     # Define the optimizer
     optimizer = optim.Adam(residual_model.parameters(), lr = learning_rate)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = 100, gamma = 0.9)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = 40, gamma = 0.9)
 
     # Define the loss history
     loss_history = []
@@ -328,47 +293,12 @@ def main():
     y_data = torch.tensor(y_data, dtype=torch.float32, device=device)
     u_data = torch.tensor(u_data, dtype=torch.float32, device=device)
 
-    # rescale and reduce dimension
-    x_dim = x_data.shape[1]
-    u_dim = u_data.shape[1]
-
-    # Standardize the data
-    x_mean_1 = torch.mean(x_data, dim=0)
-    x_std_1 = torch.std(x_data, dim=0)
-    std_layer_1 = StdScalerLayer(x_mean_1.to(device), x_std_1.to(device))
-    x_data_scaled = std_layer_1.transform(x_data)
-
-    u_mean = torch.mean(u_data, dim=0)
-    u_std = torch.std(u_data, dim=0)
-    std_layer_u = StdScalerLayer(u_mean.to(device), u_std.to(device))
-    u_data_scaled = std_layer_u.transform(u_data)
-
-    # Apply PCA to the data
-    pca = PCA(n_components=config['pca_dim'])
-    pca.fit(x_data_scaled.detach().cpu().numpy())
-    components = pca.components_
-    pca_matrix = torch.tensor(components, dtype=torch.float32, device=device)
-    pca_layer = PCALayer(x_dim, config['pca_dim'], pca_matrix).to(device)
-
-    # Standardize the data 2
-    x_pca = pca_layer.transform(x_data_scaled)
-    x_mean_2 = torch.mean(x_pca, dim=0)
-    x_std_2 = torch.std(x_pca, dim=0)
-    std_layer_2 = StdScalerLayer(x_mean_2.to(device), x_std_2.to(device))
-
-    # Build StdPCA Layer
-    rescale_pca_layer = Rescale_pca_layer(std_layer_1, std_layer_2, std_layer_u, pca_layer)
-
-    # Transform the data
-    x_data = rescale_pca_layer.transform_x(x_data)
-    y_data = rescale_pca_layer.transform_x(y_data)
-    u_data = rescale_pca_layer.transform_u(u_data)
-
-    dataset = (x_data, y_data, u_data)
+    # Preprocess the data
+    dataset, rescale_pca_layer = preprocess_data(x_data, y_data, u_data, config)
 
     # Define the linear model
     state_dim = config['pca_dim'] + 1
-    control_dim = u_dim
+    control_dim = dataset[2].shape[1]
     linear_model = Linear_model(state_dim, control_dim).to(device)
 
     # Define the pretrained model
