@@ -51,3 +51,28 @@ def loss_function_orth(G, H):
     return max_loss
 
 
+def loss_function_fit(e, H):
+    # print(f"e shape: {e.shape}")
+    # print(f"H shape: {H.shape}")
+
+    # 确保 H 的行数等于 e 的第一维
+    if H.shape[0] != e.shape[0]:
+        raise ValueError(f"H and e shape mismatch: H shape {H.shape}, e shape {e.shape}")
+
+    # 计算投影矩阵
+    projection_matrix = H @ torch.linalg.pinv(H.T @ H) @ H.T
+    # print(f"Projection matrix shape: {projection_matrix.shape}")
+
+    # 对 e 的每一列进行投影
+    total_loss = 0
+    for i in range(e.shape[1]):  # 遍历列
+        e_column = e[:, i].view(-1, 1)  # 提取每一列并转换为列向量
+        projected_e = projection_matrix @ e_column  # 投影
+        total_loss += torch.sum((e_column - projected_e) ** 2)  # 累加损失
+
+    return total_loss
+
+def loss_function_total(G, H, e, alpha=1):
+    loss_orth = loss_function_orth(G, H)
+    loss_fit = loss_function_fit(e, H)
+    return alpha * loss_orth + (1 - alpha) * loss_fit
